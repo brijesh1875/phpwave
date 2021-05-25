@@ -18,14 +18,14 @@
      {
           // die(SITE_PATH);
           $file = new FileUpload($_FILES['image']);
-          $config=array(
-               "upload_path" => "upload/",
-          );
-          if(!$file->do_upload($config))
-               $file->upload_error();
+          if($file->to_public("upload")->move(50,0,800))
+          {
+               echo "<pre>";
+               print_r($file->success());
+          }
           else
           {
-               echo "uploaded";
+               print_r($file->error());
           }
      }
 

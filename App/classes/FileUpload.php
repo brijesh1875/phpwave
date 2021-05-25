@@ -4,117 +4,170 @@
      class FileUpload
      {
           private $file_name;
-          private $file_size;
-          private $file_type;
           private $tmp_name;
+          private $file_size;
+          private $img_height;
+          private $img_width;
+          private $file_type;
+          private $file_ext;
           private $error;
-          private $prefrences;
+          private $upload_path;
           private $success;
           const KB = 1024;
           const MB = 1024*1024;
-          public function __construct($file)
+          ##
+               // Constructor method
+          ##
+
+          public function __construct($file,$remove_space = TRUE)
           {
-               $this->prefrences = array(
-                    "upload_path" => FILE_PATH,
-                    "allowed_type" => '',
-                    "file_name" => '',
-                    "remove_spaces" => TRUE,
-                    "max_size" => 0,
-                    "max_height" => 0,
-                    "max_width" => 0
-               );
-               $this->success = array();
-               $this->error = [
-                    "PREFRENCE_VALUE_NOT_NULL" => '',
-               ];
-               if(!is_array($file['name']))
+               if($remove_space === TRUE)
                {
                     $this->file_name = str_replace(" ","_",$file['name']);
-                    $this->file_size = $file['size'];
-                    $this->file_type = $file['type'];
-                    $this->tmp_name = $file['tmp_name'];
                }
                else
                {
-                    if(!isset($file['name'][1]))
+                    $this->file_name = $file['name'];
+               }
+               $this->tmp_name = $file['tmp_name'];
+               $this->file_size = $file['size']/self::KB;
+               $type_arr = explode("/",$file['type']);
+               $this->file_type = $type_arr[0];
+               $this->file_ext = $type_arr[1];
+               if($this->file_type == 'image')
+               {
+                    $img = getimagesize($this->tmp_name);
+                    $this->img_width =  $img[0];
+                    $this->img_height =  $img[1];
+               }
+               else
+               {
+                    $this->img_width =  '';
+                    $this->img_height =  '';
+               }
+               $this->error = array();
+               $this->success = array();
+               $this->upload_path = '';
+          }
+
+          ##
+               /* Member Methods */
+          ##
+          public function get_original_name()
+          {
+               return $this->file_name;
+          }
+          public function filename($filename)
+          {
+               $this->file_name = $filename;
+          }
+          public function to_public($path)
+          {
+               $this->upload_path = FILE_PATH.ltrim($path,"/");
+               return $this;
+          }
+          public function to_location($path)
+          {
+               $this->upload_path = $path;
+               return $this;
+          }
+          public function move($max_size=0,$max_height=0,$max_width=0)
+          {
+               $return = false;
+               $size_error = false;
+               $height_error = false;
+               $width_error = false;
+               if(($max_size>0 && $this->file_size <= $max_size) || $max_size == 0)
+               {
+                    $size_error = false;
+               }
+               else
+               {
+                    $size_error = true;
+               }
+               if(($max_height > 0 && $this->img_height <= $max_height)  || $max_height == 0)
+               {
+                    $height_error = false;
+               }
+               else
+               {
+                    $height_error = true;
+               }
+               if(($max_width > 0 && $this->img_width <= $max_width)  || $max_width == 0)
+               {
+                    $width_error = false;
+               }
+               else
+               {
+                    $width_error = true;
+               }
+               if($size_error === false && $height_error === false && $width_error === false)
+               {
+                    // die($this->upload_path."/".$this->get_original_file_name());
+                    if(file_exists($this->upload_path."/".$this->file_name))
                     {
-                         $this->file_name = $file['name'][0];
-                         $this->file_size = $file['size'][0];
-                         $this->file_type = $file['type'][0];
-                         $this->tmp_name = $file['tmp_name'][0];
+                         $this->error['FILE_ALREADY_EXISTS'] = "File  $this->file_name is already exists";
+                         $return =  false;
                     }
                     else
                     {
-                         $count = count($file['name']);
-                         for($i=0;$i<$count;$i++)
+                         $pos = strpos($this->file_name,".");
+                         $filename = str_split($this->file_name,$pos);
+                         $filename =  $filename[0];
+                         if(move_uploaded_file($this->tmp_name,$this->upload_path."/".$this->file_name))
                          {
-                              $this->file_name[$i] = $file['name'][$i]; 
-                              $this->file_size[$i] = $file['size'][$i];
-                              $this->file_type[$i] = $file['type'][$i];
-                              $this->tmp_name[$i] = $file['tmp_name'][$i];
-                         }
-                    }
-               }
-          }
-
-          public function do_upload($config)
-          {
-               if(array_key_exists("upload_path",$config))
-               {
-                    if(!is_array($this->file_name))
-                    {
-                         foreach($config as $pref_attr => $pref_value )
-                         {
-                              if(array_key_exists($pref_attr,$config) && $pref_value !='')
-                              {
-                                   if($pref_attr == "upload_path")
-                                   {
-                                        $this->prefrences['upload_path'] .= ltrim($config['upload_path'],'/');
-                                   }
-                                   else
-                                   {
-                                        $this->prefrences[$pref_attr] = $pref_value;
-                                   }
-                              }
-                              else
-                              {
-                                   $this->error['PREFRENCE_VALUE_NOT_NULL'] .="$pref_attr, "; 
-                              }
-                         } 
-                         if($this->error['PREFRENCE_VALUE_NOT_NULL'] != '')    
-                              $this->error['PREFRENCE_VALUE_NOT_NULL'] = rtrim($this->error['PREFRENCE_VALUE_NOT_NULL'],", ")." cannot be null ";
-                         if($this->prefrences['file_name'] == '')
-                              $this->prefrences['file_name'] = $this->file_name;
-                              // echo $this->prefrences['file_name'];
-                         if(file_exists(basename(FILE_PATH.$this->prefrences['file_name'])))
-                         {
-                              echo "File already exists";
+                              $this->success = [
+                                   "file_name" => $this->file_name,
+                                   "file_name_no_ext" =>$filename,
+                                   'upload_path' => $this->upload_path,
+                                   'file_size' => $this->file_size,
+                                   'file_ext' => $this->file_ext,
+                                   'height' => $this->img_height,
+                                   'width' => $this->img_width,
+                                   'type' => $this->file_type,   
+                              ];
+                              $return = true;
                          }
                          else
                          {
-                              echo "not exists";
+                              $return = false;
                          }
                     }
                }
+
                else
                {
-                    $this->error['UPLOAD_PATH_MISSING'] = "Upload Path is empty";
+                    if($size_error === true)
+                    {
+                         $this->error['SIZE_ERROR'] = "File exceed the maximum upload limit $max_size kb";
+                    }
+                    if($height_error === true)
+                    {
+                         $this->error['HEIGHT_ERROR'] = "Image height exceed the maximum height limit $max_height px";
+                    }
+                    if($width_error === true)
+                    {
+                         $this->error['WIDTH_ERROR'] = "Image width exceed the maximum width limit $max_width px";
+                    }
+                    
                }
+
+               return $return;
+               
           }
 
-          function upload_error()
+          public function success()
           {
-               // echo "<pre>";
-               if(!empty($this->error))
-               {
-                    foreach($this->error as $error_type => $error_msg);
-                    {
-                         if($error_msg != '')
-                              echo "Error -> $error_type : $error_msg";
-                    }
-               }
-               exit;
+               return $this->success;
           }
-          function __destruct(){}
+
+          public function error()
+          {
+               return $this->error;
+          }
+          function __destruct()
+          {
+
+          }
      }
 ?>
