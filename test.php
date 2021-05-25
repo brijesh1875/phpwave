@@ -4,7 +4,7 @@
      </head>
      <body>
           <form action='test.php' method='post' enctype="multipart/form-data">
-               <input type = 'file' name = 'image[]' multiple>
+               <input type = 'file' name = 'image'>
                <input type = 'submit' name = 'submit' value='Upload'>
           </form>
      </body>
@@ -16,10 +16,17 @@
      use \App\classes\Session;
      if(isset($_POST['submit']))
      {
+          // die(SITE_PATH);
           $file = new FileUpload($_FILES['image']);
-          
-          
-
+          $config=array(
+               "upload_path" => "upload/",
+          );
+          if(!$file->do_upload($config))
+               $file->upload_error();
+          else
+          {
+               echo "uploaded";
+          }
      }
 
 ?>

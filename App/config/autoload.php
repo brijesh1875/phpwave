@@ -5,4 +5,6 @@
                include_once str_replace("\\","/",$classname).".php";
           }
      });
+
+     include_once("constant.php");
 ?>
