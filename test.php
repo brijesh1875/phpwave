@@ -17,16 +17,10 @@
      if(isset($_POST['submit']))
      {
           // die(SITE_PATH);
-          $file = new FileUpload($_FILES['image']);
-          if($file->to_public("upload")->move(50,0,800))
-          {
-               echo "<pre>";
-               print_r($file->success());
-          }
-          else
-          {
-               print_r($file->error());
-          }
+          $file = new FileUpload();
+          $file->file_detail($_FILES['image']);
+          print_r($file->get_file_details());
      }
+
 
 ?>
